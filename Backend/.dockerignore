@@ -1,0 +1,17 @@
+# Add to .gitignore
+.env
+.env.local
+.env.production
+
+# Docker
+.dockerignore
+
+# Database
+*.db
+*.sqlite3
+
+# Redis dump
+dump.rdb
+
+# SSL certificates
+ssl/
