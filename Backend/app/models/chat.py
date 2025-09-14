@@ -34,7 +34,7 @@ class ChatMessage(Base):
     role = Column(String(20), nullable=False)  # 'user', 'assistant', 'system'
     content = Column(Text, nullable=False)
     tool_calls = Column(JSON, nullable=True)  # Store tool call information
-    metadata = Column(JSON, nullable=True)  # Additional metadata
+    extra_data = Column(JSON, nullable=True)  # Additional metadata
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships

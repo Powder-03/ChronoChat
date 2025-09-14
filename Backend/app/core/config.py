@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     
     class Config:
         env_file = ".env"
+        extra = "ignore"  # Ignore extra fields that aren't defined in the model
 
 
 # Create settings instance

@@ -1,0 +1,72 @@
+[project]
+name = "chronochat"
+version = "1.0.0"
+description = "ChronoChat - AI-powered chat application with LangGraph backend and Streamlit frontend"
+authors = [
+    {name = "ChronoChat Team"}
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # FastAPI and server
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart",
+    
+    # Database
+    "sqlalchemy",
+    "psycopg2-binary",
+    "asyncpg",
+    "alembic",
+    
+    # Redis
+    "redis[hiredis]",
+    
+    # Authentication
+    "python-jose[cryptography]",
+    "passlib[bcrypt]",
+    
+    # Data validation
+    "pydantic",
+    "pydantic-settings",
+    "email-validator",
+    
+    # Environment
+    "python-dotenv",
+    
+    # AI/LLM - LangChain and LangGraph
+    "langchain",
+    "langchain-core",
+    "langchain-openai",
+    "langchain-community",
+    "langchain-google-genai",
+    "google-generativeai",
+    "langgraph",
+    
+    # Streamlit frontend
+    "streamlit",
+    
+    # Tool dependencies for langgraph_backend
+    "duckduckgo-search",
+    "requests",
+    
+    # Utilities
+    "python-dateutil",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "httpx",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = []
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.4.3",
+    "pytest-asyncio>=0.21.1",
+    "httpx>=0.25.2",
+]
