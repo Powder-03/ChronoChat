@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.core.config import settings
+from app.core.database import init_databases, close_databases
 from app.api.routes import auth, chat, health, system
 
 # Configure logging
@@ -22,8 +23,20 @@ async def lifespan(app: FastAPI):
     """Application lifespan manager"""
     logger.info("Starting ChronoChat API...")
     logger.info(f"Environment: {'Development' if settings.DEBUG else 'Production'}")
+    
+    # Initialize database connections
+    try:
+        await init_databases()
+        logger.info("Database connections established")
+    except Exception as e:
+        logger.error(f"Failed to initialize databases: {str(e)}")
+        raise
+    
     yield
+    
+    # Close database connections
     logger.info("Shutting down ChronoChat API...")
+    await close_databases()
 
 
 # Initialize FastAPI app

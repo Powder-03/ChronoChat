@@ -12,15 +12,16 @@ services:
       - .:/app
       - /app/__pycache__
     depends_on:
-      - db
+      - postgres
+      - mongodb
       - redis
     networks:
       - chronochat-network
     restart: unless-stopped
 
-  db:
+  postgres:
     image: postgres:15-alpine
-    container_name: chronochat-db
+    container_name: chronochat-postgres
     environment:
       POSTGRES_USER: chronochat
       POSTGRES_PASSWORD: chronochat
@@ -32,6 +33,31 @@ services:
     networks:
       - chronochat-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chronochat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:7
+    container_name: chronochat-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: chronochat
+      MONGO_INITDB_ROOT_PASSWORD: chronochat
+      MONGO_INITDB_DATABASE: chronochat
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - chronochat-network
+    restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/chronochat --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -43,9 +69,15 @@ services:
     networks:
       - chronochat-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
+  mongodb_data:
   redis_data:
 
 networks:

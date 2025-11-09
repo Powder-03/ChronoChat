@@ -37,10 +37,14 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-2.5-flash"
     OPENAI_MODEL: str = "gpt-4"
     
-    # Database Configuration (optional)
-    DATABASE_URL: str = "postgresql://chronochat:chronochat@db:5432/chronochat"
+    # PostgreSQL Configuration (for user data, analytics, etc.)
+    DATABASE_URL: str = "postgresql://chronochat:chronochat@postgres:5432/chronochat"
     
-    # Redis Configuration (optional)
+    # MongoDB Configuration (for chat/conversation storage)
+    MONGODB_URL: str = "mongodb://chronochat:chronochat@mongodb:27017"
+    MONGODB_DB_NAME: str = "chronochat"
+    
+    # Redis Configuration (for caching)
     REDIS_URL: str = "redis://redis:6379"
     
     model_config = SettingsConfigDict(

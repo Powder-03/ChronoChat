@@ -1,14 +1,14 @@
 """
 Chat service for handling AI chatbot interactions
 Integrates with LangChain, LangGraph, and LangSmith
+Uses MongoDB for conversation storage
 """
-import uuid
 from typing import Dict, Any, List, Optional
 import logging
-from datetime import datetime
 
-from app.core.config import settings
 from app.services.ai_service import AIService
+from app.services.chat_agent import ChatAgent
+from app.repositories.conversation_repository import ConversationRepository
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +16,13 @@ logger = logging.getLogger(__name__)
 class ChatService:
     """
     Chat service for processing AI chatbot messages
-    Supports both Gemini and OpenAI through AIService
+    Uses LangGraph for agent workflow and MongoDB for storage
     """
     
     def __init__(self):
-        self.conversations: Dict[str, List[Dict]] = {}
         self.ai_service = AIService()
+        self.chat_agent = ChatAgent(self.ai_service)
+        self.conversation_repo = ConversationRepository()
         
         logger.info(f"ChatService initialized with provider: {self.ai_service.provider.value}")
     
@@ -44,83 +45,98 @@ class ChatService:
         Returns:
             Dictionary with response and conversation ID
         """
-        # Generate or use existing conversation ID
-        if not conversation_id:
-            conversation_id = str(uuid.uuid4())
-        
-        # Create conversation key
-        conv_key = f"{user_id}:{conversation_id}"
-        
-        # Initialize conversation if needed
-        if conv_key not in self.conversations:
-            self.conversations[conv_key] = []
-        
-        # Add user message to conversation
-        user_message = {
-            "role": "user",
-            "content": message,
-            "timestamp": datetime.utcnow().isoformat()
-        }
-        self.conversations[conv_key].append(user_message)
-        
-        # Get conversation history for context
-        conversation_history = self.conversations[conv_key]
-        
-        # Generate AI response
-        ai_result = await self.ai_service.generate_response(
-            message=message,
-            conversation_history=conversation_history
-        )
-        
-        ai_response = ai_result["response"]
-        
-        # Add AI response to conversation
-        assistant_message = {
-            "role": "assistant",
-            "content": ai_response,
-            "timestamp": datetime.utcnow().isoformat(),
-            "model": ai_result.get("model"),
-            "tokens": ai_result.get("tokens")
-        }
-        self.conversations[conv_key].append(assistant_message)
-        
-        logger.info(f"Processed message for user {user_id}, conversation {conversation_id}, provider: {ai_result.get('provider')}")
-        
-        # Prepare response metadata
-        response_metadata = metadata or {}
-        response_metadata.update({
-            "model": ai_result.get("model"),
-            "provider": ai_result.get("provider"),
-            "tokens": ai_result.get("tokens")
-        })
-        
-        return {
-            "response": ai_response,
-            "conversation_id": conversation_id,
-            "metadata": response_metadata
-        }
+        try:
+            # Create new conversation if needed
+            if not conversation_id:
+                conversation_id = await self.conversation_repo.create_conversation(
+                    user_id=user_id,
+                    metadata=metadata
+                )
+            
+            # Get existing messages for context
+            existing_messages = await self.conversation_repo.get_conversation_messages(
+                conversation_id=conversation_id
+            )
+            
+            # Save user message to MongoDB
+            await self.conversation_repo.add_message(
+                conversation_id=conversation_id,
+                role="user",
+                content=message,
+                metadata=metadata
+            )
+            
+            # Process message through LangGraph agent
+            agent_result = await self.chat_agent.process_message(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                message=message,
+                existing_messages=existing_messages,
+                metadata=metadata
+            )
+            
+            ai_response = agent_result["response"]
+            response_metadata = agent_result["metadata"]
+            
+            # Save AI response to MongoDB
+            await self.conversation_repo.add_message(
+                conversation_id=conversation_id,
+                role="assistant",
+                content=ai_response,
+                model=response_metadata.get("model"),
+                provider=response_metadata.get("provider"),
+                tokens=response_metadata.get("tokens"),
+                metadata=response_metadata
+            )
+            
+            # Update conversation title if it's the first exchange
+            if len(existing_messages) == 0:
+                title = self.chat_agent.get_conversation_summary([{"content": message}])
+                await self.conversation_repo.update_conversation(
+                    user_id=user_id,
+                    conversation_id=conversation_id,
+                    update_data={"title": title}
+                )
+            
+            logger.info(f"Processed message for user {user_id}, conversation {conversation_id}")
+            
+            return {
+                "response": ai_response,
+                "conversation_id": conversation_id,
+                "metadata": response_metadata
+            }
+            
+        except Exception as e:
+            logger.error(f"Error processing message: {str(e)}")
+            raise
     
-    async def get_user_conversations(self, user_id: str) -> List[Dict[str, Any]]:
+    async def get_user_conversations(
+        self,
+        user_id: str,
+        skip: int = 0,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
         """
         Get all conversations for a user
         
         Args:
             user_id: User ID from Clerk
+            skip: Number of conversations to skip
+            limit: Maximum number of conversations to return
             
         Returns:
             List of conversation summaries
         """
-        user_convs = []
-        for conv_key, messages in self.conversations.items():
-            if conv_key.startswith(f"{user_id}:"):
-                conversation_id = conv_key.split(":", 1)[1]
-                user_convs.append({
-                    "conversation_id": conversation_id,
-                    "message_count": len(messages),
-                    "last_message": messages[-1] if messages else None
-                })
-        
-        return user_convs
+        try:
+            conversations = await self.conversation_repo.get_user_conversations(
+                user_id=user_id,
+                skip=skip,
+                limit=limit
+            )
+            return conversations
+        except Exception as e:
+            logger.error(f"Error getting user conversations: {str(e)}")
+            raise
     
     async def get_conversation(
         self,
@@ -128,25 +144,24 @@ class ChatService:
         conversation_id: str
     ) -> Optional[Dict[str, Any]]:
         """
-        Get a specific conversation
+        Get a specific conversation with messages
         
         Args:
             user_id: User ID from Clerk
             conversation_id: Conversation ID
             
         Returns:
-            Conversation data or None
+            Conversation data with messages or None
         """
-        conv_key = f"{user_id}:{conversation_id}"
-        messages = self.conversations.get(conv_key)
-        
-        if not messages:
-            return None
-        
-        return {
-            "conversation_id": conversation_id,
-            "messages": messages
-        }
+        try:
+            result = await self.conversation_repo.get_conversation(
+                user_id=user_id,
+                conversation_id=conversation_id
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Error getting conversation: {str(e)}")
+            raise
     
     async def delete_conversation(
         self,
@@ -154,7 +169,7 @@ class ChatService:
         conversation_id: str
     ) -> bool:
         """
-        Delete a conversation
+        Delete a conversation and all its messages
         
         Args:
             user_id: User ID from Clerk
@@ -163,8 +178,40 @@ class ChatService:
         Returns:
             True if deleted, False if not found
         """
-        conv_key = f"{user_id}:{conversation_id}"
-        if conv_key in self.conversations:
-            del self.conversations[conv_key]
-            return True
-        return False
+        try:
+            result = await self.conversation_repo.delete_conversation(
+                user_id=user_id,
+                conversation_id=conversation_id
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Error deleting conversation: {str(e)}")
+            raise
+    
+    async def search_conversations(
+        self,
+        user_id: str,
+        query: str,
+        limit: int = 20
+    ) -> List[Dict[str, Any]]:
+        """
+        Search user's conversations
+        
+        Args:
+            user_id: User ID from Clerk
+            query: Search query
+            limit: Maximum number of results
+            
+        Returns:
+            List of matching conversations
+        """
+        try:
+            results = await self.conversation_repo.search_conversations(
+                user_id=user_id,
+                query=query,
+                limit=limit
+            )
+            return results
+        except Exception as e:
+            logger.error(f"Error searching conversations: {str(e)}")
+            raise

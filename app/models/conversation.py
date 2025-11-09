@@ -1,45 +1,80 @@
 """
-Database models for conversation and message storage
+MongoDB models for conversation and message storage
+These are Pydantic models for MongoDB documents
 """
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Integer
-from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
+from pydantic import BaseModel, Field
+from typing import List, Optional, Dict, Any
 from datetime import datetime
-import uuid
-
-Base = declarative_base()
+from bson import ObjectId
 
 
-class Conversation(Base):
-    """Conversation model"""
-    __tablename__ = "conversations"
-    
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    user_id = Column(String, nullable=False, index=True)
-    title = Column(String, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    # Relationship to messages
-    messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
-    
-    def __repr__(self):
-        return f"<Conversation(id={self.id}, user_id={self.user_id})>"
+class PyObjectId(ObjectId):
+    """Custom type for MongoDB ObjectId"""
+    @classmethod
+    def __get_validators__(cls):
+        yield cls.validate
+
+    @classmethod
+    def validate(cls, v):
+        if not ObjectId.is_valid(v):
+            raise ValueError("Invalid ObjectId")
+        return ObjectId(v)
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, field_schema):
+        field_schema.update(type="string")
 
 
-class Message(Base):
-    """Message model"""
-    __tablename__ = "messages"
+class MessageDocument(BaseModel):
+    """MongoDB document for a message"""
+    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    conversation_id: str
+    role: str  # 'user', 'assistant', or 'system'
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
     
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    conversation_id = Column(String, ForeignKey("conversations.id"), nullable=False)
-    role = Column(String, nullable=False)  # 'user' or 'assistant'
-    content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    token_count = Column(Integer, nullable=True)
+    # AI metadata
+    model: Optional[str] = None
+    provider: Optional[str] = None
+    tokens: Optional[int] = None
     
-    # Relationship to conversation
-    conversation = relationship("Conversation", back_populates="messages")
+    # Additional metadata
+    metadata: Optional[Dict[str, Any]] = None
     
-    def __repr__(self):
-        return f"<Message(id={self.id}, role={self.role})>"
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+
+class ConversationDocument(BaseModel):
+    """MongoDB document for a conversation"""
+    id: Optional[PyObjectId] = Field(default_factory=PyObjectId, alias="_id")
+    conversation_id: str  # UUID string for easy reference
+    user_id: str  # Clerk user ID
+    
+    # Conversation details
+    title: Optional[str] = None
+    summary: Optional[str] = None
+    
+    # Timestamps
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    # Stats
+    message_count: int = 0
+    total_tokens: int = 0
+    
+    # Metadata
+    metadata: Optional[Dict[str, Any]] = None
+    
+    # Tags for organization
+    tags: List[str] = []
+    
+    # Archived status
+    is_archived: bool = False
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}

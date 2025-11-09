@@ -131,3 +131,29 @@ async def delete_conversation(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error deleting conversation"
         )
+
+
+@router.get("/search")
+async def search_conversations(
+    q: str,
+    limit: int = 20,
+    current_user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Search conversations by title or content
+    
+    Requires: Bearer token in Authorization header
+    """
+    try:
+        results = await chat_service.search_conversations(
+            user_id=current_user["user_id"],
+            query=q,
+            limit=limit
+        )
+        return {"results": results, "total": len(results)}
+    except Exception as e:
+        logger.error(f"Error searching conversations: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error searching conversations"
+        )

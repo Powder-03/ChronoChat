@@ -9,23 +9,31 @@ An AI-powered chatbot with Clerk authentication, built with FastAPI, LangChain, 
   - Google OAuth (easily configurable)
   - Support for GitHub, Discord, Facebook, and more
   - Magic links and OTP
-- 🤖 **AI Chatbot** - Powered by LangChain and LangGraph
+- 🤖 **AI Chatbot** - Powered by LangChain and **LangGraph**
+  - **LangGraph Agent**: State-based conversation management
   - **Google Gemini 2.0 Flash** support (fast and efficient)
   - **OpenAI GPT-4** support
   - Easy provider switching via configuration
 - 📊 **LangSmith Integration** - AI conversation tracing and monitoring
 - 🐳 **Fully Dockerized** - Easy deployment with Docker Compose
 - 🚀 **FastAPI Backend** - High-performance async API
-- 🔄 **Redis Caching** - Fast response times
-- 🗄️ **PostgreSQL Database** - Persistent data storage
+- �️ **Hybrid Database Architecture**:
+  - **MongoDB**: Chat conversations and messages (scalable, flexible)
+  - **PostgreSQL**: User data, analytics, usage stats (relational)
+  - **Redis**: Caching and rate limiting
+- 📦 **Repository Pattern**: Clean separation of data access logic
 
 ## Tech Stack
 
 - **Backend**: FastAPI, Python 3.11
-- **AI/ML**: LangChain, LangGraph, LangSmith
+- **AI/ML**: LangChain, LangGraph (state-based agents), LangSmith
 - **Authentication**: Clerk
-- **Database**: PostgreSQL
-- **Caching**: Redis
+- **Databases**: 
+  - MongoDB (conversations/messages)
+  - PostgreSQL (user data/analytics)
+  - Redis (caching)
+- **ORM/ODM**: SQLAlchemy (async), Motor (async MongoDB)
+- **Migrations**: Alembic
 - **Containerization**: Docker, Docker Compose
 
 ## Prerequisites
@@ -155,10 +163,11 @@ python -m uvicorn app.main:app --reload
 - `GET /api/auth/session/{session_id}` - Verify session
 
 ### Chat (Protected)
-- `POST /api/chat/message` - Send message to AI chatbot
-- `GET /api/chat/conversations` - Get user's conversations
+- `POST /api/chat/message` - Send message to AI chatbot (LangGraph agent)
+- `GET /api/chat/conversations` - Get user's conversations (from MongoDB)
 - `GET /api/chat/conversations/{conversation_id}` - Get specific conversation
 - `DELETE /api/chat/conversations/{conversation_id}` - Delete conversation
+- `GET /api/chat/search?q=query` - Search conversations
 
 ### System
 - `GET /api/system/ai-provider` - Get current AI provider info
@@ -219,16 +228,40 @@ Check current provider:
 curl http://localhost:8000/api/system/ai-provider
 ```
 
+## Database Migrations
+
+### Initialize Database (First Time)
+```bash
+# Create initial migration
+docker-compose exec api alembic revision --autogenerate -m "Initial migration"
+
+# Apply migrations
+docker-compose exec api alembic upgrade head
+```
+
+### After Model Changes
+```bash
+# Generate migration
+docker-compose exec api alembic revision --autogenerate -m "Description of changes"
+
+# Apply migration
+docker-compose exec api alembic upgrade head
+```
+
+See [DATABASE_ARCHITECTURE.md](DATABASE_ARCHITECTURE.md) for detailed database design.
+
 ## Next Steps
 
 1. ✅ **AI Integration Complete** - Gemini and OpenAI support ready
-2. ✅ **Database Models Created** - SQLAlchemy models for conversation persistence
-3. ✅ **Pydantic Schemas Organized** - Separate schemas and models folders
-4. **Frontend Integration**: Build a frontend with React/Next.js and integrate Clerk
-5. **Implement Database Persistence**: Connect SQLAlchemy models to actual database
-6. **Add LangGraph Workflows**: Create complex AI workflows using LangGraph
-7. **Add Rate Limiting**: Implement rate limiting for API endpoints
-8. **Add WebSocket Support**: Real-time chat with WebSocket connections
+2. ✅ **LangGraph Agent Implemented** - State-based conversation management
+3. ✅ **MongoDB Integration** - Chat storage with conversation repository
+4. ✅ **PostgreSQL Models** - User data, analytics, usage tracking
+5. ✅ **Hybrid Database Architecture** - Best of both worlds
+6. **Frontend Integration**: Build a frontend with React/Next.js and integrate Clerk
+7. **Implement User Analytics**: Track usage stats and sessions
+8. **Add Rate Limiting**: Implement rate limiting for API endpoints
+9. **Add WebSocket Support**: Real-time chat with WebSocket connections
+10. **Advanced LangGraph Workflows**: Multi-agent systems, tool usage
 
 ## Docker Commands
 
