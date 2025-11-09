@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: chronochat-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    depends_on:
+      - db
+      - redis
+    networks:
+      - chronochat-network
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    container_name: chronochat-db
+    environment:
+      POSTGRES_USER: chronochat
+      POSTGRES_PASSWORD: chronochat
+      POSTGRES_DB: chronochat
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - chronochat-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: chronochat-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - chronochat-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  chronochat-network:
+    driver: bridge

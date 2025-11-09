@@ -1,0 +1,38 @@
+# FastAPI and Server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Clerk Authentication
+clerk-backend-api==1.2.0
+pyjwt==2.8.0
+cryptography==42.0.0
+
+# LangChain and AI Tools
+langchain==0.1.4
+langchain-openai==0.0.5
+langchain-community==0.0.16
+langgraph==0.0.20
+langsmith==0.0.83
+
+# HTTP and Async
+httpx==0.26.0
+aiohttp==3.9.1
+
+# Environment and Configuration
+python-dotenv==1.0.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Database (PostgreSQL - optional)
+sqlalchemy==2.0.25
+asyncpg==0.29.0
+alembic==1.13.1
+
+# Redis (optional for caching)
+redis==5.0.1
+hiredis==2.3.2
+
+# Utilities
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
