@@ -10,6 +10,9 @@ An AI-powered chatbot with Clerk authentication, built with FastAPI, LangChain, 
   - Support for GitHub, Discord, Facebook, and more
   - Magic links and OTP
 - 🤖 **AI Chatbot** - Powered by LangChain and LangGraph
+  - **Google Gemini 2.0 Flash** support (fast and efficient)
+  - **OpenAI GPT-4** support
+  - Easy provider switching via configuration
 - 📊 **LangSmith Integration** - AI conversation tracing and monitoring
 - 🐳 **Fully Dockerized** - Easy deployment with Docker Compose
 - 🚀 **FastAPI Backend** - High-performance async API
@@ -29,7 +32,9 @@ An AI-powered chatbot with Clerk authentication, built with FastAPI, LangChain, 
 
 - Docker and Docker Compose
 - Clerk account ([clerk.com](https://clerk.com))
-- OpenAI API key (for LangChain)
+- **AI Provider** (choose one):
+  - Google Gemini API key (recommended, free tier available)
+  - OpenAI API key
 - LangSmith account (optional, for tracing)
 
 ## Setup
@@ -57,14 +62,36 @@ CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
 CLERK_SECRET_KEY=sk_test_your_key_here
 CLERK_JWT_KEY=your_jwt_key_here
 
-# OpenAI Configuration
+# AI Provider (choose one)
+AI_PROVIDER=gemini  # Options: gemini, openai
+
+# Google Gemini Configuration (if using Gemini)
+GOOGLE_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.0-flash-exp
+
+# OpenAI Configuration (if using OpenAI)
 OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4
 
 # LangSmith Configuration (optional)
 LANGCHAIN_API_KEY=your_langsmith_api_key_here
 ```
 
-### 3. Get Clerk Credentials
+### 3. Get AI Provider API Key
+
+#### Option A: Google Gemini (Recommended)
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Click "Create API Key"
+3. Copy the API key → `GOOGLE_API_KEY`
+4. Set `AI_PROVIDER=gemini` in `.env`
+
+#### Option B: OpenAI
+1. Go to [OpenAI Platform](https://platform.openai.com/api-keys)
+2. Create new API key
+3. Copy the API key → `OPENAI_API_KEY`
+4. Set `AI_PROVIDER=openai` in `.env`
+
+### 4. Get Clerk Credentials
 
 1. Go to [clerk.com](https://clerk.com) and create an account
 2. Create a new application
@@ -79,7 +106,7 @@ LANGCHAIN_API_KEY=your_langsmith_api_key_here
    - Secret Key → `CLERK_SECRET_KEY`
 6. For JWT Key, go to **JWT Templates** and create a template, then copy the PEM public key → `CLERK_JWT_KEY`
 
-### 4. Run with Docker
+### 5. Run with Docker
 
 ```bash
 # Build and start all services
@@ -133,6 +160,9 @@ python -m uvicorn app.main:app --reload
 - `GET /api/chat/conversations/{conversation_id}` - Get specific conversation
 - `DELETE /api/chat/conversations/{conversation_id}` - Delete conversation
 
+### System
+- `GET /api/system/ai-provider` - Get current AI provider info
+
 ## Authentication
 
 All protected endpoints require a Bearer token in the Authorization header:
@@ -166,14 +196,39 @@ ChronoChat/
 └── README.md
 ```
 
+## Switching AI Providers
+
+The application supports both Google Gemini and OpenAI. To switch:
+
+### Use Gemini (Default)
+```env
+AI_PROVIDER=gemini
+GOOGLE_API_KEY=your_gemini_api_key
+GEMINI_MODEL=gemini-2.0-flash-exp
+```
+
+### Use OpenAI
+```env
+AI_PROVIDER=openai
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4
+```
+
+Check current provider:
+```bash
+curl http://localhost:8000/api/system/ai-provider
+```
+
 ## Next Steps
 
-1. **Implement LangChain Integration**: Uncomment and configure LangChain in `chat_service.py`
-2. **Add Database Models**: Create SQLAlchemy models for conversation persistence
-3. **Implement LangGraph Workflows**: Add complex AI workflows using LangGraph
+1. ✅ **AI Integration Complete** - Gemini and OpenAI support ready
+2. ✅ **Database Models Created** - SQLAlchemy models for conversation persistence
+3. ✅ **Pydantic Schemas Organized** - Separate schemas and models folders
 4. **Frontend Integration**: Build a frontend with React/Next.js and integrate Clerk
-5. **Add Rate Limiting**: Implement rate limiting for API endpoints
-6. **Add WebSocket Support**: Real-time chat with WebSocket connections
+5. **Implement Database Persistence**: Connect SQLAlchemy models to actual database
+6. **Add LangGraph Workflows**: Create complex AI workflows using LangGraph
+7. **Add Rate Limiting**: Implement rate limiting for API endpoints
+8. **Add WebSocket Support**: Real-time chat with WebSocket connections
 
 ## Docker Commands
 

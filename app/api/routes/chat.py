@@ -2,32 +2,23 @@
 Chat endpoints for AI chatbot functionality
 """
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 import logging
 
 from app.core.clerk import get_current_user
 from app.services.chat_service import ChatService
+from app.schemas.chat import (
+    ChatMessage, 
+    ChatResponse, 
+    ConversationListResponse,
+    ConversationDetailSchema
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # Initialize chat service
 chat_service = ChatService()
-
-
-class ChatMessage(BaseModel):
-    """Chat message model"""
-    message: str
-    conversation_id: Optional[str] = None
-    metadata: Optional[Dict[str, Any]] = None
-
-
-class ChatResponse(BaseModel):
-    """Chat response model"""
-    response: str
-    conversation_id: str
-    metadata: Optional[Dict[str, Any]] = None
 
 
 @router.post("/message", response_model=ChatResponse)
@@ -60,7 +51,7 @@ async def send_message(
         )
 
 
-@router.get("/conversations")
+@router.get("/conversations", response_model=ConversationListResponse)
 async def get_conversations(
     current_user: Dict[str, Any] = Depends(get_current_user)
 ):
@@ -73,7 +64,10 @@ async def get_conversations(
         conversations = await chat_service.get_user_conversations(
             user_id=current_user["user_id"]
         )
-        return {"conversations": conversations}
+        return {
+            "conversations": conversations,
+            "total": len(conversations)
+        }
     except Exception as e:
         logger.error(f"Error fetching conversations: {str(e)}")
         raise HTTPException(
@@ -82,7 +76,7 @@ async def get_conversations(
         )
 
 
-@router.get("/conversations/{conversation_id}")
+@router.get("/conversations/{conversation_id}", response_model=ConversationDetailSchema)
 async def get_conversation(
     conversation_id: str,
     current_user: Dict[str, Any] = Depends(get_current_user)

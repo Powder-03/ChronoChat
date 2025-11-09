@@ -2,20 +2,13 @@
 Chat service for handling AI chatbot interactions
 Integrates with LangChain, LangGraph, and LangSmith
 """
-import os
 import uuid
 from typing import Dict, Any, List, Optional
 import logging
 from datetime import datetime
 
-# LangChain imports (will be used for actual AI implementation)
-# from langchain_openai import ChatOpenAI
-# from langchain.chains import ConversationChain
-# from langchain.memory import ConversationBufferMemory
-# from langgraph.graph import StateGraph
-# from langsmith import Client
-
 from app.core.config import settings
+from app.services.ai_service import AIService
 
 logger = logging.getLogger(__name__)
 
@@ -23,30 +16,14 @@ logger = logging.getLogger(__name__)
 class ChatService:
     """
     Chat service for processing AI chatbot messages
-    
-    This is a basic implementation. You'll integrate LangChain, LangGraph,
-    and LangSmith for production use.
+    Supports both Gemini and OpenAI through AIService
     """
     
     def __init__(self):
         self.conversations: Dict[str, List[Dict]] = {}
+        self.ai_service = AIService()
         
-        # Setup LangSmith tracing if configured
-        if settings.LANGCHAIN_TRACING_V2 and settings.LANGCHAIN_API_KEY:
-            os.environ["LANGCHAIN_TRACING_V2"] = str(settings.LANGCHAIN_TRACING_V2)
-            os.environ["LANGCHAIN_ENDPOINT"] = settings.LANGCHAIN_ENDPOINT
-            os.environ["LANGCHAIN_API_KEY"] = settings.LANGCHAIN_API_KEY
-            os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT
-            logger.info("LangSmith tracing enabled")
-        
-        # TODO: Initialize LangChain components
-        # self.llm = ChatOpenAI(
-        #     model="gpt-4",
-        #     temperature=0.7,
-        #     openai_api_key=settings.OPENAI_API_KEY
-        # )
-        # self.memory = ConversationBufferMemory()
-        # self.chain = ConversationChain(llm=self.llm, memory=self.memory)
+        logger.info(f"ChatService initialized with provider: {self.ai_service.provider.value}")
     
     async def process_message(
         self,
@@ -79,31 +56,48 @@ class ChatService:
             self.conversations[conv_key] = []
         
         # Add user message to conversation
-        self.conversations[conv_key].append({
+        user_message = {
             "role": "user",
             "content": message,
             "timestamp": datetime.utcnow().isoformat()
-        })
+        }
+        self.conversations[conv_key].append(user_message)
         
-        # TODO: Replace with actual LangChain/LangGraph processing
-        # response = await self.chain.arun(message)
+        # Get conversation history for context
+        conversation_history = self.conversations[conv_key]
         
-        # Placeholder response
-        ai_response = f"Echo: {message} (This is a placeholder. Integrate LangChain for AI responses)"
+        # Generate AI response
+        ai_result = await self.ai_service.generate_response(
+            message=message,
+            conversation_history=conversation_history
+        )
+        
+        ai_response = ai_result["response"]
         
         # Add AI response to conversation
-        self.conversations[conv_key].append({
+        assistant_message = {
             "role": "assistant",
             "content": ai_response,
-            "timestamp": datetime.utcnow().isoformat()
-        })
+            "timestamp": datetime.utcnow().isoformat(),
+            "model": ai_result.get("model"),
+            "tokens": ai_result.get("tokens")
+        }
+        self.conversations[conv_key].append(assistant_message)
         
-        logger.info(f"Processed message for user {user_id}, conversation {conversation_id}")
+        logger.info(f"Processed message for user {user_id}, conversation {conversation_id}, provider: {ai_result.get('provider')}")
+        
+        # Prepare response metadata
+        response_metadata = metadata or {}
+        response_metadata.update({
+            "model": ai_result.get("model"),
+            "provider": ai_result.get("provider"),
+            "tokens": ai_result.get("tokens")
+        })
         
         return {
             "response": ai_response,
             "conversation_id": conversation_id,
-            "metadata": metadata or {}
+            "metadata": response_metadata
         }
     
     async def get_user_conversations(self, user_id: str) -> List[Dict[str, Any]]:

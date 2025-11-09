@@ -28,8 +28,14 @@ class Settings(BaseSettings):
     LANGCHAIN_API_KEY: str = ""
     LANGCHAIN_PROJECT: str = "chronochat"
     
-    # OpenAI Configuration
+    # AI Provider Configuration
+    AI_PROVIDER: str = "gemini"  # Options: openai, gemini
     OPENAI_API_KEY: str = ""
+    GOOGLE_API_KEY: str = ""
+    
+    # Model Configuration
+    GEMINI_MODEL: str = "gemini-2.5-flash"
+    OPENAI_MODEL: str = "gpt-4"
     
     # Database Configuration (optional)
     DATABASE_URL: str = "postgresql://chronochat:chronochat@db:5432/chronochat"
